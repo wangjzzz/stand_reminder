@@ -1,0 +1,50 @@
+{
+  "name": "stand-reminder",
+  "version": "0.1.0",
+  "private": true,
+  "description": "起身 · 给专注留一点呼吸的空间",
+  "main": "./out/main/index.js",
+  "author": "Stand Reminder",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "npm run typecheck && electron-vite build",
+    "start": "electron-vite preview",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:desktop": "node scripts/smoke.cjs",
+    "dist": "npm run build && electron-builder --win portable"
+  },
+  "build": {
+    "appId": "com.standreminder.desktop",
+    "productName": "Stand Reminder",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "out/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": "portable",
+      "artifactName": "Stand-Reminder-${version}.${ext}"
+    }
+  },
+  "dependencies": {
+    "lucide-react": "^1.47.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.1",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^5.2.0",
+    "electron": "^44.4.2",
+    "electron-builder": "^26.15.3",
+    "electron-vite": "^5.0.0",
+    "playwright": "^1.63.0",
+    "typescript": "^7.0.2",
+    "vite": "^7.3.6",
+    "vitest": "^5.0.1"
+  }
+}

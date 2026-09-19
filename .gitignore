@@ -1,0 +1,8 @@
+node_modules/
+out/
+release/
+coverage/
+.desktop-test/
+*.log
+.env*
+!.env.example
