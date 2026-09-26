@@ -8,8 +8,10 @@ import { validateSettings, type Action, type Snapshot } from '../shared/types'
 
 let mainWindow: BrowserWindow | null = null
 let reminders: BrowserWindow[] = []
+let petWindow: BrowserWindow | null = null
 let tray: Tray | null = null
 let quitting = false
+let petDismissed = false
 let interval: ReturnType<typeof setInterval> | undefined
 let store: Store
 let timer: ReminderTimer
@@ -30,16 +32,18 @@ function broadcast(): void {
     if (!window.isDestroyed() && !window.webContents.isDestroyed()) window.webContents.send('snapshot', state)
   }
 }
-function loadWindow(window: BrowserWindow, reminder = false): void {
+function loadWindow(window: BrowserWindow, view: '' | 'reminder' | 'pet' = ''): void {
   const url = process.env.ELECTRON_RENDERER_URL
-  if (url) void window.loadURL(`${url}${reminder ? '#reminder' : ''}`)
-  else void window.loadFile(join(__dirname, '../renderer/index.html'), { hash: reminder ? 'reminder' : '' })
+  if (url) void window.loadURL(`${url}${view ? `#${view}` : ''}`)
+  else void window.loadFile(join(__dirname, '../renderer/index.html'), { hash: view })
 }
 function secureWindow(window: BrowserWindow): void {
   window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
   window.webContents.on('will-navigate', (event) => event.preventDefault())
 }
 function showMain(): void {
+  petDismissed = false
+  hidePet()
   if (mainWindow && !mainWindow.isDestroyed()) { mainWindow.show(); mainWindow.focus(); return }
   mainWindow = new BrowserWindow({ width: 1160, height: 820, minWidth: 880, minHeight: 680,
     title: '起身 · Stand Reminder', backgroundColor: '#f5f6f3', show: false,
@@ -52,11 +56,50 @@ function showMain(): void {
       event.preventDefault()
       // Defer hiding until Windows finishes dispatching the native close event.
       const closingWindow = mainWindow
-      setImmediate(() => { if (!quitting && closingWindow && !closingWindow.isDestroyed()) closingWindow.hide() })
+      setImmediate(() => minimizeToPet(closingWindow))
     }
   })
   mainWindow.on('closed', () => { mainWindow = null })
   loadWindow(mainWindow)
+}
+function minimizeToPet(window = mainWindow): void {
+  if (quitting || !window || window.isDestroyed()) return
+  window.hide()
+  petDismissed = false
+  showPet()
+}
+function hidePet(): void {
+  if (petWindow && !petWindow.isDestroyed()) petWindow.hide()
+}
+function showPet(): void {
+  if (quitting || petDismissed || systemBlocks.size || timer.snapshot().phase !== 'work') return
+  if (petWindow && !petWindow.isDestroyed()) {
+    petWindow.showInactive()
+    petWindow.setAlwaysOnTop(true, 'floating')
+    return
+  }
+  const { workArea } = screen.getPrimaryDisplay()
+  const width = 156
+  const height = 190
+  petWindow = new BrowserWindow({
+    width, height,
+    x: workArea.x + workArea.width - width - 22,
+    y: workArea.y + workArea.height - height - 18,
+    show: false, frame: false, transparent: true, backgroundColor: '#00000000',
+    alwaysOnTop: true, skipTaskbar: true, resizable: false, maximizable: false,
+    fullscreenable: false, hasShadow: false,
+    webPreferences: { preload: join(__dirname, '../preload/index.js'), contextIsolation: true, nodeIntegration: false, sandbox: true }
+  })
+  secureWindow(petWindow)
+  petWindow.setAlwaysOnTop(true, 'floating')
+  petWindow.once('ready-to-show', () => {
+    if (petWindow && !petWindow.isDestroyed() && !petDismissed) {
+      petWindow.showInactive()
+      petWindow.setAlwaysOnTop(true, 'floating')
+    }
+  })
+  petWindow.on('closed', () => { petWindow = null })
+  loadWindow(petWindow, 'pet')
 }
 function closeReminders(): void {
   const windows = reminders
@@ -84,12 +127,18 @@ function showReminders(): void {
     window.webContents.on('before-input-event', (event, input) => {
       if (input.key === 'Escape' && input.type === 'keyDown') { event.preventDefault(); runAction('snooze') }
     })
-    loadWindow(window, true)
+    loadWindow(window, 'reminder')
   }
 }
 function reconcile(): void {
-  if (timer.snapshot().phase === 'break' && !systemBlocks.size) showReminders()
-  else closeReminders()
+  if (timer.snapshot().phase === 'break' && !systemBlocks.size) {
+    hidePet()
+    showReminders()
+  } else {
+    closeReminders()
+    if (systemBlocks.size) hidePet()
+    else if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.isVisible()) showPet()
+  }
   broadcast()
 }
 function tick(): void {
@@ -127,6 +176,7 @@ function unblockSystem(reason: string): void {
 function updateTray(): void {
   tray?.setContextMenu(Menu.buildFromTemplate([
     { label: '打开起身', click: showMain },
+    { label: '显示桌宠', click: () => minimizeToPet() },
     { label: timer.snapshot().running ? '暂停计时' : '继续计时', click: () => runAction(timer.snapshot().running ? 'pause' : 'resume') },
     { label: '现在活动一下', click: () => runAction('break-now') },
     { type: 'separator' }, { label: '退出起身', click: () => app.quit() }
@@ -166,6 +216,12 @@ else {
       timer.configure(store.settings)
       try { store.save() } finally { broadcast() }
     })
+    ipcMain.handle('open-main', (event) => { assertSender(event); showMain() })
+    ipcMain.handle('show-pet', (event) => {
+      assertSender(event)
+      minimizeToPet()
+    })
+    ipcMain.handle('hide-pet', (event) => { assertSender(event); petDismissed = true; hidePet() })
     ipcMain.handle('quit', (event) => { assertSender(event); app.quit() })
     createTray()
     showMain()

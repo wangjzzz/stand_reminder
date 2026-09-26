@@ -33,6 +33,9 @@ export interface DesktopAPI {
   action(action: Action): Promise<void>
   saveSettings(settings: Settings): Promise<void>
   onSnapshot(callback: (snapshot: Snapshot) => void): () => void
+  openMain(): Promise<void>
+  showPet(): Promise<void>
+  hidePet(): Promise<void>
   quit(): Promise<void>
 }
 export function localDate(now = new Date()): string {

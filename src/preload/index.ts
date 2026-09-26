@@ -5,6 +5,9 @@ const api: DesktopAPI = {
   getSnapshot: () => ipcRenderer.invoke('snapshot'),
   action: (action) => ipcRenderer.invoke('action', action),
   saveSettings: (settings) => ipcRenderer.invoke('settings', settings),
+  openMain: () => ipcRenderer.invoke('open-main'),
+  showPet: () => ipcRenderer.invoke('show-pet'),
+  hidePet: () => ipcRenderer.invoke('hide-pet'),
   quit: () => ipcRenderer.invoke('quit'),
   onSnapshot: (callback) => {
     const listener = (_event: Electron.IpcRendererEvent, snapshot: Snapshot) => callback(snapshot)

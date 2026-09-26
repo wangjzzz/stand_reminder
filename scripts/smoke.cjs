@@ -61,29 +61,57 @@ async function run() {
     assert.equal((await window.evaluate(() => window.desktop.getSnapshot())).timer.running, false)
     await app.evaluate(({ powerMonitor }) => powerMonitor.emit('unlock-screen'))
     assert.equal((await window.evaluate(() => window.desktop.getSnapshot())).timer.running, true)
-    console.log('PASS: UI, settings, fullscreen, Escape, power events. Checking tray close...')
-    await app.evaluate(({ BrowserWindow }) => {
-      setImmediate(() => {
-        const main = BrowserWindow.getAllWindows()[0]
-        if (main && !main.isDestroyed()) main.close()
-      })
-    })
-    // Poll from the test process, allowing Windows to dispatch native messages.
-    for (let attempt = 0; attempt < 30; attempt++) {
-      if (!(await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].isVisible()))) break
+    if ((await window.evaluate(() => window.desktop.getSnapshot())).timer.phase === 'break') {
+      await window.evaluate(() => window.desktop.action('skip'))
+    }
+    assert.equal((await window.evaluate(() => window.desktop.getSnapshot())).timer.phase, 'work')
+    console.log('PASS: UI, settings, fullscreen, Escape, power events. Checking desktop pet...')
+    await window.evaluate(() => window.desktop.showPet())
+    const nativePetReady = await app.evaluate(({ BrowserWindow }) => new Promise(resolve => setTimeout(() => {
+      resolve(BrowserWindow.getAllWindows().some(item => !item.isDestroyed() && item.webContents.getURL().endsWith('#pet')))
+    }, 300)))
+    assert.equal(nativePetReady, true)
+    let pet
+    for (let attempt = 0; attempt < 50; attempt++) {
+      pet = app.windows().find(page => page.url().endsWith('#pet'))
+      if (pet) break
       await new Promise(resolve => setTimeout(resolve, 100))
     }
-    assert.equal(await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].isVisible()), false)
+    assert.ok(pet, `Pet window was not created. Open pages: ${app.windows().map(page => page.url()).join(', ')}`)
+    pet.on('pageerror', error => console.error('Pet page error:', error.message))
+    pet.on('console', message => { if (message.type() === 'error') console.error('Pet console:', message.text()) })
+    await pet.waitForLoadState('domcontentloaded')
+    await pet.getByText('已工作').waitFor()
+    const firstElapsed = await pet.locator('.pet-time-card strong').textContent()
+    await new Promise(resolve => setTimeout(resolve, 1200))
+    const nextElapsed = await pet.locator('.pet-time-card strong').textContent()
+    assert.notEqual(nextElapsed, firstElapsed)
+    await pet.screenshot({ path: resolve('.desktop-test', 'pet.png'), omitBackground: true })
+    const petWindowState = await app.evaluate(({ BrowserWindow }) => {
+      const main = BrowserWindow.getAllWindows().find(item => {
+        const url = item.webContents.getURL()
+        return !url.endsWith('#pet') && !url.endsWith('#reminder')
+      })
+      const pet = BrowserWindow.getAllWindows().find(item => item.webContents.getURL().includes('#pet'))
+      return { mainVisible: main?.isVisible(), petVisible: pet?.isVisible(), petOnTop: pet?.isAlwaysOnTop(), petSize: pet?.getSize() }
+    })
+    assert.deepEqual(petWindowState, { mainVisible: false, petVisible: true, petOnTop: true, petSize: [156, 190] })
+    await pet.getByRole('button', { name: /打开主界面/ }).click()
+    await window.getByText('专注有时，休息有度').waitFor({ state: 'visible' })
+    assert.equal(await app.evaluate(({ BrowserWindow }) => {
+      const pet = BrowserWindow.getAllWindows().find(item => item.webContents.getURL().includes('#pet'))
+      return Boolean(pet && !pet.isVisible())
+    }), true)
     assert.equal(errors.length, 0, errors.join('\n'))
-    console.log('PASS: tray close. Checking restart...')
+    console.log('PASS: desktop pet. Checking restart...')
     await app.close()
     console.log('First instance exited.')
     app = await electron.launch({ args: ['.'], env })
     const restarted = await app.firstWindow()
     await restarted.getByText('专注有时，休息有度').waitFor()
     assert.equal((await restarted.evaluate(() => window.desktop.getSnapshot())).settings.workMinutes, 25)
-    console.log('PASS: desktop render, pause, settings persistence, input validation, extensions, fullscreen, Escape snooze, power events, tray close, restart.')
-    console.log('Screenshots: .desktop-test/{dashboard,settings,extensions,reminder}.png')
+    console.log('PASS: desktop render, pause, settings persistence, input validation, extensions, fullscreen, Escape snooze, power events, desktop pet, restart.')
+    console.log('Screenshots: .desktop-test/{dashboard,settings,extensions,reminder,pet}.png')
   } finally { if (app) await app.close(); if (devServer) await devServer.close() }
 }
 run().catch(error => { console.error(error); process.exitCode = 1 })

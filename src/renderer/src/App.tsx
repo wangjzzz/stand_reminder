@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { ArrowUpRight, Check, ChevronRight, CircleHelp, Coffee, Footprints, LayoutDashboard, Leaf, Pause, Play, Puzzle, RotateCcw, Settings2, Sprout, Timer, X } from 'lucide-react'
 import type { Action, Settings, Snapshot } from '../../shared/types'
 import { extensions } from './extensions'
+import { Pet } from './Pet'
 
 const formatTime = (ms: number) => { const seconds = Math.ceil(ms / 1000); return `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}` }
 type Page = 'dashboard' | 'extensions' | 'settings'
@@ -12,6 +13,7 @@ export function App() {
   const [error, setError] = useState('')
   const [help, setHelp] = useState(false)
   const reminder = location.hash === '#reminder'
+  const pet = location.hash === '#pet'
   useEffect(() => {
     if (!window.desktop) { setError('请通过 npm run dev 启动桌面应用。'); return }
     const unsubscribe = window.desktop.onSnapshot(setState)
@@ -20,6 +22,7 @@ export function App() {
   }, [])
   const action = (value: Action) => { setError(''); window.desktop.action(value).catch(e => setError(String(e))) }
   if (!state) return <div className="loading"><Sprout size={40} /><p>{error || '给专注留一点呼吸的空间…'}</p></div>
+  if (pet) return <Pet state={state} action={action} openMain={() => window.desktop.openMain()} hide={() => window.desktop.hidePet()} />
   if (reminder) return <div className="break-screen">
     <div className="break-top"><Brand /><span>属于你的休息时间</span><button className="icon-button" aria-label="稍后提醒" onClick={() => action('snooze')}><X /></button></div>
     <div className="break-content"><div className="break-art"><Sprout strokeWidth={1} size={108} /><span className="orb orb-one" /><span className="orb orb-two" /></div>
