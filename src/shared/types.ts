@@ -4,10 +4,11 @@ export interface Settings {
   snoozeMinutes: number
   autoStart: boolean
   allDisplays: boolean
+  selectedPetId: string
 }
 export const DEFAULT_SETTINGS: Settings = {
   workMinutes: 45, breakMinutes: 5, snoozeMinutes: 5,
-  autoStart: true, allDisplays: true
+  autoStart: true, allDisplays: true, selectedPetId: 'sprout-student'
 }
 export type Phase = 'work' | 'break'
 export type Action = 'pause' | 'resume' | 'reset' | 'break-now' | 'snooze' | 'skip' | 'finish'
@@ -48,5 +49,7 @@ export function validateSettings(value: unknown): Settings {
     if (!Number.isInteger(s[key]) || s[key] < min || s[key] > max) throw new Error(`${key} 必须是 ${min}–${max} 的整数`)
   }
   if (typeof s.autoStart !== 'boolean' || typeof s.allDisplays !== 'boolean') throw new Error('开关设置无效')
-  return { workMinutes: s.workMinutes, breakMinutes: s.breakMinutes, snoozeMinutes: s.snoozeMinutes, autoStart: s.autoStart, allDisplays: s.allDisplays }
+  const selectedPetId = s.selectedPetId === undefined ? DEFAULT_SETTINGS.selectedPetId : s.selectedPetId
+  if (typeof selectedPetId !== 'string' || !/^[a-z0-9-]{1,64}$/.test(selectedPetId)) throw new Error('桌宠标识无效')
+  return { workMinutes: s.workMinutes, breakMinutes: s.breakMinutes, snoozeMinutes: s.snoozeMinutes, autoStart: s.autoStart, allDisplays: s.allDisplays, selectedPetId }
 }

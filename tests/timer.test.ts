@@ -59,4 +59,8 @@ describe('settings validation', () => {
     expect(() => validateSettings(null)).toThrow()
     expect(validateSettings(DEFAULT_SETTINGS)).toEqual(DEFAULT_SETTINGS)
   })
+  it('migrates settings saved before desktop pet selection existed', () => {
+    const { selectedPetId: _removed, ...legacySettings } = DEFAULT_SETTINGS
+    expect(validateSettings(legacySettings).selectedPetId).toBe('sprout-student')
+  })
 })

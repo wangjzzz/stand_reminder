@@ -18,7 +18,7 @@ export function Pet({ state, action, openMain, hide }: {
   openMain: () => void
   hide: () => void
 }) {
-  const pet = pets[0]
+  const pet = pets.find(item => item.id === state.settings.selectedPetId) ?? pets[0]
   const elapsed = state.timer.phase === 'work'
     ? Math.max(0, state.timer.durationMs - state.timer.remainingMs)
     : state.timer.durationMs

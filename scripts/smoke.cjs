@@ -38,6 +38,10 @@ async function run() {
       const state = await window.desktop.getSnapshot()
       try { await window.desktop.saveSettings({ ...state.settings, workMinutes: 0 }); return false } catch { return true }
     }), true)
+    await window.getByRole('button', { name: '桌宠衣橱' }).click()
+    await window.getByRole('heading', { name: '桌宠衣橱' }).waitFor()
+    await window.getByRole('button', { name: '正在使用' }).waitFor()
+    await window.screenshot({ path: resolve('.desktop-test', 'pet-picker.png') })
     await window.getByRole('button', { name: '扩展空间' }).click()
     await window.getByRole('heading', { name: '角色陪伴' }).waitFor()
     await window.screenshot({ path: resolve('.desktop-test', 'extensions.png') })
@@ -109,9 +113,11 @@ async function run() {
     app = await electron.launch({ args: ['.'], env })
     const restarted = await app.firstWindow()
     await restarted.getByText('专注有时，休息有度').waitFor()
-    assert.equal((await restarted.evaluate(() => window.desktop.getSnapshot())).settings.workMinutes, 25)
+    const restartedSettings = (await restarted.evaluate(() => window.desktop.getSnapshot())).settings
+    assert.equal(restartedSettings.workMinutes, 25)
+    assert.equal(restartedSettings.selectedPetId, 'sprout-student')
     console.log('PASS: desktop render, pause, settings persistence, input validation, extensions, fullscreen, Escape snooze, power events, desktop pet, restart.')
-    console.log('Screenshots: .desktop-test/{dashboard,settings,extensions,reminder,pet}.png')
+    console.log('Screenshots: .desktop-test/{dashboard,settings,pet-picker,extensions,reminder,pet}.png')
   } finally { if (app) await app.close(); if (devServer) await devServer.close() }
 }
 run().catch(error => { console.error(error); process.exitCode = 1 })

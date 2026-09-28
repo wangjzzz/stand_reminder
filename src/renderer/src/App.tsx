@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
-import { ArrowUpRight, Check, ChevronRight, CircleHelp, Coffee, Footprints, LayoutDashboard, Leaf, Pause, Play, Puzzle, RotateCcw, Settings2, Sprout, Timer, X } from 'lucide-react'
+import { ArrowUpRight, Check, ChevronRight, CircleHelp, Coffee, Footprints, LayoutDashboard, Leaf, Pause, PawPrint, Play, Puzzle, RotateCcw, Settings2, Sprout, Timer, X } from 'lucide-react'
 import type { Action, Settings, Snapshot } from '../../shared/types'
 import { extensions } from './extensions'
 import { Pet } from './Pet'
+import { PetPicker } from './PetPicker'
 
 const formatTime = (ms: number) => { const seconds = Math.ceil(ms / 1000); return `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}` }
-type Page = 'dashboard' | 'extensions' | 'settings'
+type Page = 'dashboard' | 'pets' | 'extensions' | 'settings'
 
 export function App() {
   const [state, setState] = useState<Snapshot | null>(null)
@@ -36,7 +37,7 @@ export function App() {
   </div>
   return <div className="app-shell">
     <aside className="sidebar"><Brand /><div className="nav-caption">你的日常节奏</div><nav>
-      {[{ id: 'dashboard', label: '专注与休息', icon: LayoutDashboard }, { id: 'extensions', label: '扩展空间', icon: Puzzle }, { id: 'settings', label: '偏好设置', icon: Settings2 }].map(item => <button key={item.id} className={`nav-item ${page === item.id ? 'selected' : ''}`} onClick={() => setPage(item.id as Page)}><item.icon size={19} />{item.label}{item.id === 'extensions' && <span className="nav-dot" />}</button>)}
+      {[{ id: 'dashboard', label: '专注与休息', icon: LayoutDashboard }, { id: 'pets', label: '桌宠衣橱', icon: PawPrint }, { id: 'extensions', label: '扩展空间', icon: Puzzle }, { id: 'settings', label: '偏好设置', icon: Settings2 }].map(item => <button key={item.id} className={`nav-item ${page === item.id ? 'selected' : ''}`} onClick={() => setPage(item.id as Page)}><item.icon size={19} />{item.label}{item.id === 'extensions' && <span className="nav-dot" />}</button>)}
     </nav><div className="sidebar-bottom"><div className="small-plant"><Sprout size={30} strokeWidth={1.4} /><p>好好工作，<br />也好好照顾自己。</p></div><button className="help-button" onClick={() => setHelp(true)}><CircleHelp size={17} /> 使用小贴士 <ArrowUpRight size={15} /></button><div className="version">起身桌面版 <span>v0.1.0</span></div></div></aside>
     <main className="main"><header className="topbar"><span>给专注留一点呼吸的空间</span><span className="date">{new Date().toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'long' })}</span></header>
       {page === 'dashboard' && <>
@@ -49,7 +50,8 @@ export function App() {
         <section className="quote-card"><span className="quote-mark">“</span><div><span className="section-kicker">今日寄语</span><p>{state.content.quote}</p><small>{state.content.source}</small></div><span className="quote-tag">ONE DAY, ONE THOUGHT</span></section>
         <div className="more-row"><div><Puzzle size={18} /><span>属于你的提醒方式，还可以有更多可能。</span></div><button onClick={() => setPage('extensions')}>探索扩展空间 <ArrowUpRight size={15} /></button></div>
       </>}
-      {page === 'extensions' && <><div className="page-heading"><div><div className="eyebrow">MAKE IT YOURS</div><h1>一点点，变成你喜欢的样子。</h1><p>先养成起身的习惯，再慢慢丰富这段陪伴。</p></div></div><div className="extension-grid">{extensions.map(extension => <article className="extension-card" key={extension.id}><div className="extension-top"><span className="stat-icon"><extension.icon size={24} /></span><span className={`badge ${extension.ready ? 'ready' : ''}`}>{extension.ready ? '已启用' : '即将探索'}</span></div><h2>{extension.title}</h2><p>{extension.description}</p><div className="extension-bottom">{extension.tag}{extension.ready && <Check size={16} />}</div></article>)}</div><div className="note"><Sprout size={20} /><p>这是扩展的起点。今日计划、角色陪伴与 AI 提醒暂未实现，后续可以独立接入。</p></div></>}
+      {page === 'pets' && <PetPicker selectedId={state.settings.selectedPetId} onSelect={async selectedPetId => { await window.desktop.saveSettings({ ...state.settings, selectedPetId }) }} />}
+      {page === 'extensions' && <><div className="page-heading"><div><div className="eyebrow">MAKE IT YOURS</div><h1>一点点，变成你喜欢的样子。</h1><p>先养成起身的习惯，再慢慢丰富这段陪伴。</p></div></div><div className="extension-grid">{extensions.map(extension => <article className="extension-card" key={extension.id}><div className="extension-top"><span className="stat-icon"><extension.icon size={24} /></span><span className={`badge ${extension.ready ? 'ready' : ''}`}>{extension.ready ? '已启用' : '即将探索'}</span></div><h2>{extension.title}</h2><p>{extension.description}</p><div className="extension-bottom">{extension.tag}{extension.ready && <Check size={16} />}</div></article>)}</div><div className="note"><Sprout size={20} /><p>桌宠衣橱与每日寄语已经可以使用；今日计划与 AI 提醒仍在规划中。</p></div></>}
       {page === 'settings' && <SettingsPanel settings={state.settings} onSave={async value => { await window.desktop.saveSettings(value) }} />}
       <footer className="page-footer"><span className="status-dot" /> 关闭窗口后继续在托盘运行<span>每一个小休息，都算数。</span></footer>
       {(error || state.storageError) && <div className="error-banner" role="alert">{error || state.storageError}</div>}
